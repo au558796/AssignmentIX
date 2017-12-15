@@ -1,0 +1,159 @@
+---
+title: "Assignment 5 - Meta-analysis of pitch in schizophrenia"
+author: "Dana Jensen"
+date: "3/7/2017"
+output: html_document
+---
+---
+                            "COMPLETE"
+---
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/Dana/Desktop/METHODS III/AssignmentIX")
+library(pacman)
+p_load(metafor, lme4, MuMIn)
+df<-read.csv("Data.csv", sep = ";")
+schizoData<-read.csv("schizoData.csv", sep = ",")
+```
+
+Exercise 1) What is the current evidence for distinctive patterns of pitch mean and pitch sd in schizophrenia? Report how many papers report quantitative estimates, your method to analyze them, the estimated effect size of the difference (mean effect size and standard error for pitch mean, same for pitch sd) and forest plots representing it.
+
+```{r}
+##- Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
+
+#yi = "standardized mean difference" cohen's D (which is a distribution)(effect size)
+#vi = variance (within distribution)(kind of like standard error)
+
+pitch_mean = escalc('SMD', n1i= SampleSizeSchizo, n2i=SampleSizeContros, m1i=PitchMeanControls, m2i=PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = df)
+
+pitch_sd<-escalc('SMD', n1i= SampleSizeSchizo, n2i=SampleSizeContros, m1i=PitchSDControls, m2i=PitchSDSchizo, sd1i=PitchSDControlsSD, sd2i=PitchSDSchizoSD, data = df)
+
+## . first try using lmer (to connect to what you know of mixed effects models)
+m1<- lmer(yi ~ 1 + (1|Article),weights=1/vi, data = pitch_mean, control=lmerControl(check.nobs.vs.nlev = "ignore", check.nobs.vs.nRE = "ignore"))
+summary(m1)
+
+m2<- lmer(yi ~ 1 + (1|Article),weights=1/vi, data = pitch_sd, control=lmerControl(check.nobs.vs.nlev = "ignore", check.nobs.vs.nRE = "ignore"))
+summary(m2)
+
+## . then use rma() (to get some juicy additional statistics)
+m3 <- rma(yi, vi, data = pitch_mean, slab=Article)
+summary(m3)
+
+m4 <- rma(yi, vi, data = pitch_sd, slab=Article)
+summary(m4)
+
+##- Build a forest plot of the results (forest(model))
+plot1<-forest(m3)
+plot1<-forest(m4)
+```
+
+```{r}
+##- Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
+
+#instead name, rename column "Article", with riccardo's name (2017)
+Article<-rep("RRRRRicardo", length(schizoData$X))
+schizoData$Article<-Article
+Year<-rep("2017", length(schizoData$X))
+schizoData$Year<-Year
+
+#sample size for schiz and control (and all the other jazz)
+schizoo = data.frame(Article = "RRRRRicardo", Year = "2017", SampleSizeSchizo = 57, SampleSizeContros = 59, PitchMeanControls = 135.0317, PitchMeanControlsSD = 25.61366, PitchMeanSchizo = 149.079, PitchMeanSchizoSD = 24.02952, PitchSDControls = 47.7987, PitchSDControlsSD = 17.90346, PitchSDSchizo = 57.83132, PitchSDSchizoSD = 36.78883)
+
+#calculate pitch mean and pitch SD for schizos and controls
+
+#mean
+schizo_mean = escalc('SMD', n1i = SampleSizeSchizo, n2i = SampleSizeContros, m1i = PitchMeanSchizo, m2i = PitchMeanControls, sd1i = PitchMeanSchizoSD, sd2i = PitchMeanControlsSD, data = schizoo)
+#SD
+schizo_sd = escalc('SMD', n1i = SampleSizeSchizo, n2i = SampleSizeContros, m1i = PitchSDSchizo, m2i = PitchSDControls, sd1i = PitchSDSchizoSD, sd2i = PitchSDControlsSD, data = schizoo) # adds yi and vi (yi= cohens D, vi = variance of cohens D)
+
+shiz_mean<-merge(schizo_mean, pitch_mean, all = TRUE)
+shiz_sd<-merge(schizo_sd, pitch_sd, all = TRUE)
+all_shiz<-merge(df, schizoo, all = TRUE)
+
+## . first try using lmer (to connect to what you know of mixed effects models)
+m5<- lmer(yi ~ 1 + (1|Article),weights=1/vi, data = shiz_mean, control=lmerControl(check.nobs.vs.nlev = "ignore", check.nobs.vs.nRE = "ignore"))
+summary(m5)
+
+m6<- lmer(yi ~ 1 + (1|Article),weights=1/vi, data = shiz_sd, control=lmerControl(check.nobs.vs.nlev = "ignore", check.nobs.vs.nRE = "ignore"))
+summary(m6)
+
+## . then use rma() (to get some juicy additional statistics)
+m7 <- rma(yi, vi, data = shiz_mean, slab=Article)
+summary(m7)
+
+m8 <- rma(yi, vi, data = shiz_sd, slab=Article)
+summary(m8)
+
+##- Build a forest plot of the results (forest(model))
+plot1<-forest(m7)
+plot1<-forest(m8)
+
+
+```
+
+Exercise 2) Do the results match your own analysis from Assignment 3? If you add your results to the meta-analysis, do the estimated effect sizes change? Report the new estimates and the new forest plots.
+
+```{r}
+#first two rma models
+funnel(m3, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+m3
+funnel(m4, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+m4
+
+#mean
+regtest(m3) #no systematic relation (linear assumption)
+ranktest(m3) # no systematic relation (ordinal assumption)
+inf1 = influence(m3) #martinez change the result significantly 
+plot(inf1)
+
+#sd
+regtest(m4) #no systematic relation (linear assumption)
+ranktest(m4) # no systematic relation (ordinal assumption)
+inf2 = influence(m4) #martinez change the result significantly 
+plot(inf2)
+
+funnel(m7, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+m7
+funnel(m8, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+m8
+
+#additional data 
+
+#mean
+regtest(m7) #no systematic relation (linear assumption)
+ranktest(m7) # no systematic relation (ordinal assumption)
+inf3 = influence(m7) #martinez change the result significantly 
+plot(inf3)
+
+#sd
+regtest(m8) #no systematic relation (linear assumption)
+ranktest(m8) # no systematic relation (ordinal assumption)
+inf4 = influence(m8) #martinez change the result significantly 
+plot(inf4)
+
+```
+
+```{r}
+#so long, marianne
+no_leonard = subset(all_shiz, Article != "Cohen et al. 2014")
+no_leonard_mean = subset(shiz_mean, Article != "Cohen et al. 2014")
+no_leonard_sd = subset(shiz_sd, Article != "Cohen et al. 2014")
+
+m9 = rma(yi, vi, data = no_leonard_mean, slab = Article)
+m10 = rma(yi, vi, data = no_leonard_sd, slab = Article)
+summary(m9)
+summary(m10)
+
+forest(m9)
+funnel(m9, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+
+forest(m10)
+funnel(m10, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+regtest(m10) #no systematic relation (linear assumption)
+ranktest(m10) # no systematic relation (ordinal assumption)
+inf5 = influence(m10) #martinez change the result significantly 
+plot(inf5)
+```
+Assess the quality of the literature: report and comment on heterogeneity of the studies (tau, I2), on publication bias (funnel plot), and on influential studies.
+
+
