@@ -9,6 +9,7 @@ output: html_document
 ---
 ```{r setup, include=FALSE}
 #knitr::opts_chunk$set(echo = TRUE)
+#preamble
 setwd("C:/Users/Dana/Desktop/METHODS III/AssignmentIX")
 library(pacman)
 p_load(metafor, lme4, MuMIn)
